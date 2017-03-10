@@ -5,40 +5,137 @@
 #include <util/delay.h>
 #include <avr/eeprom.h>
 
-#define targetTemp 		(330*4)		/* Targeting 340 degrees celsius */
+#define TC_CLK		PD3
+#define TC_CS		PD4
+#define TC_DATA 	PD5
+#define SWITCH		PD2
+#define KEY_UP		PB7
+#define KEY_DOWN	PB0
 
-#define TC_CLK	PB0
-#define TC_CS	PB1
-#define TC_DATA PB2
-#define LED		PB3
-#define SWITCH	PB4
+#define SW_on()			do{ PORTD |= (1 << SWITCH); }while(0)
+#define SW_off()		do{ PORTD &= ~(1 << SWITCH); }while(0)
+#define CS_High()		do{ PORTD |= (1 << TC_CS); }while(0)
+#define CS_Low()		do{ PORTD &= ~(1 << TC_CS); }while(0)
+#define CLK_High()		do{ PORTD |= (1 << TC_CLK); }while(0)
+#define CLK_Low()		do{ PORTD &= ~(1 << TC_CLK); }while(0)
+#define DATA_read()		(( PIND >> TC_DATA) & 1)
+#define KEY_UP_READ()	(( PINB & KEY_UP) == 0)
+#define KEY_DOWN_READ()	(( PINB & KEY_DOWN) == 0)
+#define LED_SET(val)	do{ PORTB = val; }while(0)
+#define LED_CLR()		LED_SET(LED0)
+#define LED0			(0b10000001)
+#define LED250			(0b10000011)
+#define LED260			(0b10000111)
+#define LED270			(0b10000101)
+#define LED280			(0b10001101)
+#define LED290			(0b10001001)
+#define LED300			(0b10011001)
+#define LED310			(0b10010001)
+#define LED320			(0b10110001)
+#define LED330			(0b10100001)
+#define LED340			(0b11100001)
+#define LED350			(0b11000001)
 
-#define LED_on()		do{ PORTB |= (1 << LED); }while(0)
-#define LED_off()		do{ PORTB &= ~(1 << LED); }while(0)
-#define LED_tgl()		do{ PORTB ^= (1 << LED); }while(0)
-#define SW_on()			do{ PORTB |= (1 << SWITCH); }while(0)
-#define SW_off()		do{ PORTB &= ~(1 << SWITCH); }while(0)
-#define CS_High()		do{ PORTB |= (1 << TC_CS); }while(0)
-#define CS_Low()		do{ PORTB &= ~(1 << TC_CS); }while(0)
-#define CLK_High()		do{ PORTB |= (1 << TC_CLK); }while(0)
-#define CLK_Low()		do{ PORTB &= ~(1 << TC_CLK); }while(0)
-#define DATA_read()		(( PINB >> TC_DATA) & 1)
+/* UART DBG */
+#define USART_BAUDRATE 	(9600)
+#define BAUD_PRESCALE 	(((( F_CPU / 16) + ( USART_BAUDRATE / 2) ) / ( USART_BAUDRATE ) ) - 1)
+#define waitTxReady()	while (( UCSRA & (1 << UDRE ) ) == 0)
+#define UART_print(x)	do{ waitTxReady(); UDR = (x); }while(0)
+
+uint8_t LED_val = LED250;
+uint8_t target_temp = 25;	/* 250 degrees celsius */
+
+void indicate( void ){
+	switch(target_temp){
+		case 25:
+			LED_SET(LED250);
+			break;
+		case 26:
+			LED_SET(LED260);
+			break;
+		case 27:
+			LED_SET(LED270);
+			break;
+		case 28:
+			LED_SET(LED280);
+			break;
+		case 29:
+			LED_SET(LED290);
+			break;
+		case 30:
+			LED_SET(LED300);
+			break;
+		case 31:
+			LED_SET(LED310);
+			break;
+		case 32:
+			LED_SET(LED320);
+			break;
+		case 33:
+			LED_SET(LED330);
+			break;
+		case 34:
+			LED_SET(LED340);
+			break;
+		default:
+			LED_SET(LED350);
+			break;
+	}
+}
+
+void set_target( void )
+{
+	_delay_ms(50);
+
+	if(KEY_UP_READ()){
+		target_temp++;
+	}else if(KEY_DOWN_READ()){
+		target_temp--;
+	}
+
+
+	if(target_temp > 35){
+		target_temp = 35;
+	}else if(target_temp < 25){
+		target_temp = 25;
+	}
+
+	while(KEY_UP_READ() || KEY_DOWN_READ());
+}
 
 
 int main( void )
 {
 	uint16_t temp = 0;
 	uint8_t error_tc = 0;
+	uint8_t p;
 
-	DDRB = (1 << TC_CS) | (1 << TC_CLK) | (1 << LED) | (1 << SWITCH);
+	DDRD = (1 << TC_CS) | (1 << TC_CLK) | (1 << SWITCH);
+	DDRB = 0b01111110;
+	LED_CLR();
 
+	/* UART init */
+	// set the baud rate
+	UBRRL = (uint8_t)BAUD_PRESCALE;
+	UBRRH = (BAUD_PRESCALE >> 8);
+	// enable tx
+	UCSRB = (1<<TXEN);
 
 	while(1){
 		/* Initiate a temperature conversion */
 		CS_Low();
 		_delay_ms(2);
 		CS_High();
-		_delay_ms(200);
+		/* wait 200ms for measurement to finish */
+		for(p = 0; p < 40; p++){
+			_delay_ms(50);
+
+			/* in the meantime, pool keypress */
+			if(KEY_UP_READ() || KEY_DOWN_READ()){
+				set_target();
+				indicate();
+			}
+		}
 
 		/* Read the chip and return the raw temperature value */
 		/* Bring CS pin low to allow us to read the data from the conversion process */
@@ -78,20 +175,27 @@ int main( void )
 
 
 		if(error_tc == 0){
-			if(temp < targetTemp){
-				LED_on();
+			if((temp / 4) < (target_temp * 10)){
+				indicate();
 				SW_on();
 			}else{
-				LED_off();
+				LED_CLR();
 				SW_off();
 			}
+
+			temp = (temp / 40);
+
+			UART_print(((uint8_t)temp) );
+
 			_delay_ms(300);
 		} else {
 			SW_off();
-			LED_on();
+			indicate();
 			_delay_ms(300);
-			LED_off();
+			LED_CLR();
 		}
+
+
 	}
 }
 

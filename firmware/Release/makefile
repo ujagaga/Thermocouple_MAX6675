@@ -30,38 +30,38 @@ endif
 
 # Add inputs and outputs from these tool invocations to the build variables 
 FLASH_IMAGE += \
-rfid_reader.hex \
+firmware.hex \
 
 SIZEDUMMY += \
 sizedummy \
 
 
 # All Target
-all: rfid_reader.elf secondary-outputs
+all: firmware.elf secondary-outputs
 
 # Tool invocations
-rfid_reader.elf: $(OBJS) $(USER_OBJS)
+firmware.elf: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: AVR C Linker'
-	avr-gcc -Wl,-Map,rfid_reader.map -mmcu=attiny2313 -o "rfid_reader.elf" $(OBJS) $(USER_OBJS) $(LIBS)
+	avr-gcc -Wl,-Map,firmware.map -mmcu=attiny2313 -o "firmware.elf" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
-rfid_reader.hex: rfid_reader.elf
+firmware.hex: firmware.elf
 	@echo 'Create Flash image (ihex format)'
-	-avr-objcopy -R .eeprom -R .fuse -R .lock -R .signature -O ihex rfid_reader.elf  "rfid_reader.hex"
+	-avr-objcopy -R .eeprom -R .fuse -R .lock -R .signature -O ihex firmware.elf  "firmware.hex"
 	@echo 'Finished building: $@'
 	@echo ' '
 
-sizedummy: rfid_reader.elf
+sizedummy: firmware.elf
 	@echo 'Invoking: Print Size'
-	-avr-size --format=avr --mcu=attiny2313 rfid_reader.elf
+	-avr-size --format=avr --mcu=attiny2313 firmware.elf
 	@echo 'Finished building: $@'
 	@echo ' '
 
 # Other Targets
 clean:
-	-$(RM) $(FLASH_IMAGE)$(ELFS)$(OBJS)$(ASM_DEPS)$(S_DEPS)$(SIZEDUMMY)$(S_UPPER_DEPS)$(C_DEPS) rfid_reader.elf
+	-$(RM) $(FLASH_IMAGE)$(ELFS)$(OBJS)$(ASM_DEPS)$(S_DEPS)$(SIZEDUMMY)$(S_UPPER_DEPS)$(C_DEPS) firmware.elf
 	-@echo ' '
 
 secondary-outputs: $(FLASH_IMAGE) $(SIZEDUMMY)
