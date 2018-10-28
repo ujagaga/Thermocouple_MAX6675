@@ -25,7 +25,7 @@
 #define LED2_PIN				5
 #define LED3_PIN				4
 #define LED4_PIN				3
-
+#define LED5_PIN				2
 
 /* Helper macros */
 #define PIN_LOW(p, b)        	(p) &= ~(1<<(b))

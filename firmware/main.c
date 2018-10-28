@@ -17,7 +17,9 @@
 #define SelectMAX()		PIN_LOW(MAX_PORT, MAX_CS_PIN)
 #define DeselectMAX()	PIN_HIGH(MAX_PORT, MAX_CS_PIN)
 
-uint16_t targetTemp = 200;
+#define RES 			((MAX_TEMP - MIN_TEMP) / 8)
+
+uint16_t targetTemp = MIN_TEMP;
 
 void init_hw(void)
 {
@@ -75,14 +77,14 @@ bool up_key_pressed(void)
 {
 	bool retVal = false;
 
-	DDRC |= (1 << PC2);		// C2 out
+	DDRC |= (1 << PC1);		// C2 out
 	DDRC &= ~(1 << PC3);	// C3 in
-	PORTC |= (1 << PC3) | (1 << PC2);	// C3 pullup and C2 set
+	PORTC |= (1 << PC3) | (1 << PC1);	// C3 pullup and C2 set
 
 	_delay_ms(1);
 
 	if((PINC & (1 << PC3)) > 0 ){
-		PORTC &= ~(1 << PC2);
+		PORTC &= ~(1 << PC1);
 		_delay_ms(1);
 		if((PINC & (1 << PC3)) == 0 ){
 			retVal = true;
@@ -97,15 +99,15 @@ bool down_key_pressed(void)
 	bool retVal = false;
 
 	DDRB |= (1 << PB2);		// B2 out
-	DDRB &= ~(1 << PB3);	// B3 in
-	PORTB |= (1 << PB3) | (1 << PB2);	// B3 pullup and B2 set
+	DDRB &= ~(1 << PB4);	// B3 in
+	PORTB |= (1 << PB4) | (1 << PB2);	// B3 pullup and B2 set
 
 	_delay_ms(1);
 
-	if((PINB & (1 << PB3)) > 0 ){
+	if((PINB & (1 << PB4)) > 0 ){
 		PORTB &= ~(1 << PB2);
 		_delay_ms(1);
-		if((PINB & (1 << PB3)) == 0 ){
+		if((PINB & (1 << PB4)) == 0 ){
 			retVal = true;
 		}
 	}
@@ -116,7 +118,7 @@ bool down_key_pressed(void)
 void set_target(void)
 {
 	if(up_key_pressed()){
-		targetTemp += 25;
+		targetTemp += RES;
 
 		if(targetTemp > MAX_TEMP){
 			targetTemp = MAX_TEMP;
@@ -124,13 +126,39 @@ void set_target(void)
 
 		while(up_key_pressed());
 	}else if(down_key_pressed()){
-		targetTemp -= 25;
+		targetTemp -= RES;
 
 		if(targetTemp < MIN_TEMP){
 			targetTemp = MIN_TEMP;
 		}
 
 		while(down_key_pressed());
+	}
+}
+
+void set_LED(void)
+{
+	/* Clear all */
+	LED_PORT &= ~((1 << LED1_PIN) | (1 << LED2_PIN) | (1 << LED3_PIN) | (1 << LED4_PIN));
+
+	if(targetTemp == MIN_TEMP){
+		LED_PORT |= (1 << LED1_PIN);
+	}else if(targetTemp == (MIN_TEMP + RES)){
+		LED_PORT |= (1 << LED1_PIN) | (1 << LED2_PIN);
+	}else if(targetTemp == (MIN_TEMP + RES * 2)){
+		LED_PORT |= (1 << LED2_PIN);
+	}else if(targetTemp == (MIN_TEMP + RES * 3)){
+		LED_PORT |= (1 << LED2_PIN) | (1 << LED3_PIN);
+	}else if(targetTemp == (MIN_TEMP + RES * 4)){
+		LED_PORT |= (1 << LED3_PIN);
+	}else if(targetTemp == (MIN_TEMP + RES * 5)){
+		LED_PORT |= (1 << LED3_PIN) | (1 << LED4_PIN);
+	}else if(targetTemp == (MIN_TEMP + RES * 6)){
+		LED_PORT |= (1 << LED4_PIN);
+	}else if(targetTemp == (MIN_TEMP + RES * 7)){
+		LED_PORT |= (1 << LED4_PIN) | (1 << LED5_PIN);
+	}else if(targetTemp == MAX_TEMP){
+		LED_PORT |= (1 << LED5_PIN);
 	}
 }
 
@@ -144,6 +172,7 @@ int main( void )
 	while(1){
 		/* Check command keys */
 		set_target();
+		set_LED();
 
 		/* Measure temperature */
 		SelectMAX();
