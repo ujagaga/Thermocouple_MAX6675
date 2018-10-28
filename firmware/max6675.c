@@ -2,12 +2,9 @@
 #include <avr/pgmspace.h>
 #include <util/delay.h>
 #include "max6675.h"
+#include "hw_cfg.h"
 
-#define PIN_LOW(p, b)        	(p) &= ~(1<<(b))
-#define PIN_HIGH(p, b)       	(p) |= (1<<(b))
-#define PIN_OUTPUT(p, b)     	*(&p-1) |= (1<<(b))
-#define PIN_INPUT(p, b)     	*(&p-1) &= ~(1<<(b))
-#define PIN_READ(p, b)     		((*(&p-2) >> (b)) & 1)
+
 #define MAX_SET_CLK_OUTPUT()	PIN_OUTPUT(MAX_PORT, MAX_CLK_PIN)
 #define MAX_SET_DATA_INPUT()	PIN_INPUT(MAX_PORT, MAX_DATA_PIN)
 
@@ -39,7 +36,7 @@ uint16_t MAX6675_readCelsius() {
 
 	uint16_t v;
 
-	MAX_PORT |= 1 << MAX_CLK_PIN;
+	CLK_HIGH();
 
 	MAX_SET_CLK_OUTPUT();
 	MAX_SET_DATA_INPUT();
